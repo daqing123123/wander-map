@@ -60,6 +60,7 @@ body {
   position: fixed;
   inset: 0;
   z-index: 1;
+  cursor: crosshair;
 }
 
 /* ==========================================
@@ -236,10 +237,11 @@ body {
 
 .modal-overlay.show {
   opacity: 1;
-  pointer-events: auto;
+  pointer-events: none;
 }
 
 .modal {
+  pointer-events: auto;
   background: var(--surface);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-xl);
@@ -895,7 +897,7 @@ body {
         <label class="form-label">坐标</label>
         <div class="coords-display">
           <span class="coord-emoji">📍</span>
-          <span id="coordDisplay">点击地图选择位置</span>
+          <span id="coordDisplay">右键点击地图选择位置</span>
         </div>
       </div>
 
@@ -998,10 +1000,10 @@ function initMap() {
     attribution: '&copy; 高德地图 | 地图数据 © AutoNavi',
   }).addTo(state.map);
 
-  // Click handler to set pending location
-  state.map.on('click', (e) => {
+  // Right-click on map to add a pin at this location
+  state.map.on('contextmenu', (e) => {
     state.pendingLatLng = { lat: e.latlng.lat.toFixed(6), lng: e.latlng.lng.toFixed(6) };
-    updateCoordDisplay();
+    openAddModalAt(e.latlng.lat, e.latlng.lng);
   });
 }
 
@@ -1147,7 +1149,7 @@ function updateCoordDisplay() {
   if (state.pendingLatLng) {
     el.textContent = `${state.pendingLatLng.lat}, ${state.pendingLatLng.lng}`;
   } else {
-    el.textContent = '点击地图选择位置';
+    el.textContent = '右键点击地图选择位置';
   }
 }
 
@@ -1311,11 +1313,8 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
     initMap();
 
-    // Override map click to also open modal with location
-    state.map.on('click', (e) => {
-      state.pendingLatLng = { lat: e.latlng.lat.toFixed(6), lng: e.latlng.lng.toFixed(6) };
-      openAddModalAt(e.latlng.lat, e.latlng.lng);
-    });
+    // Right-click: open add modal with coordinates preset
+    // (handler bound in initMap, no extra binding needed)
 
     await loadPins();
   } catch (err) {
