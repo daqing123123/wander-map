@@ -745,32 +745,79 @@ body {
 }
 
 /* Marker Clusters (if using) */
-.custom-marker {
-  width: 40px !important;
-  height: 40px !important;
-  border-radius: 50% 50% 50% 0;
-  transform: rotate(-45deg);
+/* ---- Map Card Markers (Anitabi-style thumbnails) ---- */
+.map-card {
+  width: 130px;
+  background: #fff;
+  border-radius: var(--radius) var(--radius) 0 0;
+  box-shadow: 0 3px 14px rgba(0,0,0,0.18);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border: 2px solid #fff;
+  transform-origin: center bottom;
+  position: relative;
+}
+.map-card:hover {
+  transform: scale(1.08);
+  box-shadow: 0 6px 22px rgba(0,0,0,0.28);
+  z-index: 9999 !important;
+}
+.map-card .card-thumb {
+  width: 100%;
+  height: 68px;
+  object-fit: cover;
+  display: block;
+  background: #f0ebe4;
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+.map-card .card-thumb-placeholder {
+  width: 100%;
+  height: 68px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-  transition: transform 0.2s ease;
-  cursor: pointer;
+  font-size: 28px;
 }
-
-.custom-marker:hover {
-  transform: rotate(-45deg) scale(1.15);
+.map-card .card-thumb-placeholder.food { background: #fff0e8; }
+.map-card .card-thumb-placeholder.scenic { background: #e8f5e9; }
+.map-card .card-thumb-placeholder.location { background: #f3e5f5; }
+.map-card .card-body {
+  padding: 5px 8px 6px;
 }
-
-.custom-marker .marker-icon {
-  transform: rotate(45deg);
-  font-size: 18px;
-  line-height: 1;
+.map-card .card-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: #3a322e;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
 }
+.map-card .card-meta {
+  font-size: 9px;
+  color: #999;
+  margin-top: 1px;
+}
+.map-card .card-arrow {
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 8px solid #fff;
+}
+.map-card.card-food { border-color: var(--accent-food); }
+.map-card.card-scenic { border-color: var(--accent-scenic); }
+.map-card.card-location { border-color: var(--accent-location); }
 
-.custom-marker-food { background: var(--accent-food); }
-.custom-marker-scenic { background: var(--accent-scenic); }
-.custom-marker-location { background: var(--accent-location); }
+/* Override Leaflet default icon background */
+.leaflet-marker-icon:has(.map-card) {
+  background: none !important;
+  border: none !important;
+}
 
 /* ==========================================
    RESPONSIVE
@@ -1034,7 +1081,6 @@ async function loadPins() {
 function renderMarkers() {
   if (!state.map) return;
 
-  // Clear existing markers
   state.markers.forEach(m => state.map.removeLayer(m));
   state.markers.clear();
 
@@ -1042,19 +1088,40 @@ function renderMarkers() {
 
   filtered.forEach(pin => {
     const config = CATEGORY_CONFIG[pin.category];
+
+    let thumbHtml;
+    if (pin.image_url) {
+      thumbHtml = `<img class="card-thumb" src="${pin.image_url}" alt="${pin.title}" loading="lazy"
+                    onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"
+                    onload="this.nextElementSibling.style.display='none'" />`;
+      thumbHtml += `<div class="card-thumb-placeholder ${config.cls}" style="display:none">${config.placeholderIcon}</div>`;
+    } else {
+      thumbHtml = `<div class="card-thumb-placeholder ${config.cls}">${config.placeholderIcon}</div>`;
+    }
+
+    const html = `<div class="map-card card-${config.cls}">
+      ${thumbHtml}
+      <div class="card-body">
+        <div class="card-title">${pin.title}</div>
+        <div class="card-meta">${config.icon} ${config.label}</div>
+      </div>
+      <div class="card-arrow"></div>
+    </div>`;
+
     const icon = L.divIcon({
       className: '',
-      html: `<div class="custom-marker custom-marker-${config.cls}">
-               <span class="marker-icon">${config.icon}</span>
-             </div>`,
-      iconSize: [40, 40],
-      iconAnchor: [20, 40],
-      popupAnchor: [0, -40],
+      html,
+      iconSize: [130, 108],
+      iconAnchor: [65, 108],
+      popupAnchor: [0, -108],
     });
 
     const marker = L.marker([pin.lat, pin.lng], { icon })
       .addTo(state.map)
-      .on('click', () => openDetailPanel(pin));
+      .on('click', () => {
+        state.map.flyTo([pin.lat, pin.lng], Math.max(state.map.getZoom(), 15), { duration: 0.8 });
+        setTimeout(() => openDetailPanel(pin), 300);
+      });
 
     state.markers.set(pin.id, marker);
   });
